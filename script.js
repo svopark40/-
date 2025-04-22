@@ -2,7 +2,7 @@
 //         КОНСТАНТЫ
 // =========================
 const MAX_BONUSES_PER_SPIN = 4;
-const BONUS_DROP_CHANCE    = 1 / 15;    // ≈6.6%
+const BONUS_DROP_CHANCE    = 1 / 15;   
 const FREE_SPINS_COUNT     = 15;
 
 // =========================
@@ -38,7 +38,6 @@ const sounds = {
 // =========================
 const bgMusic = document.getElementById("background-music");
 bgMusic.volume = 0.2;
-// Фоновую музыку запускаем после первого клика
 document.addEventListener("click", () => {
   bgMusic.play().catch(() => console.warn("Фоновая музыка не стартовала"));
 }, { once: true });
@@ -78,10 +77,14 @@ function showMoneyFall(text) {
 //    ЛОГИКА СИМВОЛОВ
 // =========================
 function getRandomSymbol() {
-  // В бонусных спинах шанс bar/seven = 40%
-  if (freeSpins > 0 && Math.random() < 0.4) {
-    const pick = Math.random() < 0.5 ? "bar" : "seven";
-    return symbols.find(s => s.name === pick);
+  if (freeSpins > 0) {
+    // Исключаем бонус во время фриспинов
+    const nonBonusSymbols = symbols.filter(s => s.name !== "bonus");
+    if (Math.random() < 0.4) {
+      const pick = Math.random() < 0.5 ? "bar" : "seven";
+      return nonBonusSymbols.find(s => s.name === pick);
+    }
+    return nonBonusSymbols[Math.floor(Math.random() * nonBonusSymbols.length)];
   }
   return symbols[Math.floor(Math.random() * symbols.length)];
 }
@@ -95,14 +98,12 @@ function spin() {
 
   currentBet = parseInt(document.getElementById("bet-select").value, 10);
 
-  // Проверка: либо ставка, либо фриспин
   if (balance < currentBet && freeSpins === 0) {
-    showResult("Недостаточно средств!", "lose");
+    showResult("Иди задепай😆", "lose");
     isSpinning = false;
     return;
   }
 
-  // Списание
   if (freeSpins > 0) {
     freeSpins--;
     updateFreeSpins();
@@ -113,33 +114,28 @@ function spin() {
   updateBalance();
   updateJackpot();
 
-  // Звук
-  sounds.spin.play().catch(() => {/* игнорируем */});
+  sounds.spin.play().catch(() => {/* игнор */});
   clearSlots();
 
   const allRows = [];
   let bonusCountThisSpin = 0;
 
-  // Заполняем 3 ряда по 5 слотов
   for (let rowIdx = 1; rowIdx <= 3; rowIdx++) {
     const rowSymbols = [];
     const rowEl = document.getElementById(`row${rowIdx}`);
 
     for (let col = 0; col < 5; col++) {
       let symbol;
-      // Редкий бонус: max 4 за спин, шанс 1 из 15
-      if (bonusCountThisSpin < MAX_BONUSES_PER_SPIN && Math.random() < BONUS_DROP_CHANCE) {
+      if (freeSpins === 0 && bonusCountThisSpin < MAX_BONUSES_PER_SPIN && Math.random() < BONUS_DROP_CHANCE) {
         symbol = symbols.find(s => s.name === "bonus");
         bonusCountThisSpin++;
       } else {
         symbol = getRandomSymbol();
       }
-      // На всякий случай, если undefined
       if (!symbol) symbol = symbols[0];
 
       rowSymbols.push(symbol.name);
 
-      // Вставляем в DOM
       const slot = document.createElement("div");
       slot.classList.add("slot");
       const img = document.createElement("img");
@@ -151,7 +147,6 @@ function spin() {
     allRows.push(rowSymbols);
   }
 
-  // Обработка результата спустя 600мс «вращения»
   setTimeout(() => {
     if (bonusCountThisSpin >= 3 && !bonusTriggered) {
       bonusTriggered = true;
@@ -179,7 +174,6 @@ function checkWin(rows) {
         const mult = sym.multiplier || 1;
         totalWin += sym.payout * 100 * mult;
 
-        // Подсветка выигрышных слотов
         const rowEl = document.getElementById(`row${rIdx+1}`);
         [i, i+1, i+2].forEach(c => rowEl.children[c].classList.add("win"));
       }
@@ -202,7 +196,7 @@ function checkWin(rows) {
 //       BUY BONUS
 // =========================
 function buyBonus() {
-  const cost = currentBet * 100;
+  const cost = 15000;
   if (balance >= cost) {
     balance -= cost;
     freeSpins = FREE_SPINS_COUNT;
@@ -212,7 +206,7 @@ function buyBonus() {
     sounds.bonus.play().catch(() => {});
     showResult(`Куплен бонус: ${FREE_SPINS_COUNT} фриспинов`, "bonus");
   } else {
-    showResult("Не хватает на бонус!", "lose");
+    showResult("Не хватает на вкусняху!", "lose");
   }
 }
 
@@ -229,7 +223,7 @@ document.getElementById("bet-select").addEventListener("change", () => {
 document.getElementById("auto-spin").addEventListener("click", () => {
   isAutoSpin = !isAutoSpin;
   const btn = document.getElementById("auto-spin");
-  btn.textContent = `AutoSpin: ${isAutoSpin ? "ON" : "OFF"}`;
+  btn.textContent = `AutoЛудка: ${isAutoSpin ? "ВКЛ" : "ВЫКЛ"}`;
 
   if (isAutoSpin) {
     autoSpinInterval = setInterval(() => {
